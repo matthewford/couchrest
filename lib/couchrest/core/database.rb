@@ -20,7 +20,7 @@ module CouchRest
       @uri = @root = "#{host}/#{name}"
       @streamer = Streamer.new(self)
       @bulk_save_cache = []
-      @bulk_save_cache_limit = 50
+      @bulk_save_cache_limit = 500  # must be smaller than the uuid count
     end
     
     # returns the database's uri
@@ -61,12 +61,15 @@ module CouchRest
     # paramaters as described in http://wiki.apache.org/couchdb/HttpViewApi
     def view(name, params = {}, &block)
       keys = params.delete(:keys)
-      url = CouchRest.paramify_url "#{@uri}/_view/#{name}", params
+      name = name.split('/') # I think this will always be length == 2, but maybe not...
+      dname = name.shift
+      vname = name.join('/')
+      url = CouchRest.paramify_url "#{@uri}/_design/#{dname}/_view/#{vname}", params
       if keys
         CouchRest.post(url, {:keys => keys})
       else
         if block_given?
-          @streamer.view(name, params, &block)
+          @streamer.view("_design/#{dname}/_view/#{vname}", params, &block)
         else
           CouchRest.get url
         end
